@@ -199,7 +199,7 @@ void SyntaxAnalyzer::make_follow()
 									{
 										goon = true;
 									}
-									if (wf_y.contains_empty())
+									if (wf_y.elicit_empty())
 									{
 										// 形如U→xAy的规则且ε∈FIRST(y)，其中x∈V*, y∈V*, 则 FOLLOW(U)∈FOLLOW(A)
 										if (&wf_a != &wf)
@@ -284,12 +284,36 @@ void SyntaxAnalyzer::make_table()
 		for (int i = 0; i < wf.right.size(); ++i)
 		{
 			auto &formula = wf.right[i];
-			if (formula[0].non || formula[0].value != SYN_EMPTY)
+
+			// 判断该产生式会不会推出空
+			bool make_empty = !(formula[0].non || formula[0].value != SYN_EMPTY);
+			if (!make_empty)
 			{
-				// 产生式形如A-> x THEN
-				// FOR First(x)中的每个终极符a DO
-				//	 置M[A][a] = 'A->x'
-				for (auto t: formula_first(formula))
+				make_empty = true;
+				for (auto &node: formula)
+				{
+					if (node.non)
+					{
+						if (!VN_set[node.value].elicit_empty())
+						{
+							make_empty = false;
+							break;
+						}
+					}
+					else
+					{
+						// 遇到非空终结符，说明不会推出空
+						make_empty = false;
+						break;
+					}
+				}
+			}
+
+			// A→α, A∈VN,α∈V*, 若α不能推导出ε,则SELECT(A→α)=FIRST(α)
+			// 如果α能推导出ε则：SELECT(A→α)=（FIRST(α) –{ε}）∪FOLLOW(A)
+			for (auto t: formula_first(formula))
+			{
+				if (t != SYN_EMPTY)
 				{
 					row[t] = i + 1; // 把产生式序号填入预测表
 					if (find(letter.begin(), letter.end(), t) == letter.end())
@@ -298,11 +322,8 @@ void SyntaxAnalyzer::make_table()
 					}
 				}
 			}
-			else
+			if(make_empty)
 			{
-				// 产生式形如A-> ε THEN
-				// FOR Follow(A)中的每个终极符a DO
-				//	 置M[A][a] = ’ A->ε’
 				for (auto t : wf.follow)
 				{
 					row[t] = i + 1;
@@ -345,7 +366,7 @@ void SyntaxAnalyzer::analyse(vector<Token> &tokens)
 	int idx = 0; // token 序号
 	auto tokenIt = tokens.begin();
 
-	printf("%-10s%-10s%-10s%-10s\n", "步骤", "符号栈", "输入串", "所用产生式");
+	// printf("%-10s%-10s%-10s%-10s\n", "步骤", "符号栈", "输入串", "所用产生式");
 
 	while (!stk.empty())
 	{
@@ -357,10 +378,12 @@ void SyntaxAnalyzer::analyse(vector<Token> &tokens)
 			// IF X ∈ Vt THEN
 			// IF X = b THEN 把下一个输入符号读进b；
 			//	 ELSE ERROR
-			if (tokenIt == tokens.end() && node.value == SYN_EMPTY);
+			if (tokenIt == tokens.end() && node.value == SYN_START)
+			{
+				cout << "匹配成功，符号串是该文法的句子" << endl;
+			}
 			else if (tokenIt->syn == node.value)
 			{
-				cout << " " << getPresetStr(tokenIt->syn);
 				++tokenIt;
 			}
 			else
@@ -388,8 +411,9 @@ void SyntaxAnalyzer::analyse(vector<Token> &tokens)
 				print_formula(formula);
 				cout << endl;*/
 				auto pNode = formula.rbegin();
-				if (pNode->value != SYN_EMPTY)
+				if (pNode->non || pNode->value != SYN_EMPTY)
 				{
+					// pNode不为空，入栈
 					for (; pNode != formula.rend(); ++pNode)
 					{
 						stk.push(*pNode);
@@ -437,19 +461,9 @@ void SyntaxAnalyzer::print_formula(const Formula & formula)
 }
 
 
-bool WF::contains_empty()
+bool WF::elicit_empty()
 {
-	for (auto &formula: right)
-	{
-		for (auto &node: formula)
-		{
-			if (!node.non && node.value == SYN_EMPTY)
-			{
-				return true;
-			}
-		}
-	}
-	return false;
+	return first.find(SYN_EMPTY) != first.end();
 }
 
 void WF::print_vt(VT &vt)

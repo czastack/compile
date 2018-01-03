@@ -37,8 +37,10 @@ int main(int argc, char *argv[])
 			buff = filterSource(buff);
 			// cout << buff;
 			LexicalScanner lexical;
-			lexical.scan(buff);
-			syntax.analyse(lexical.tokens);
+			if (lexical.scan(buff))
+			{
+				syntax.analyse(lexical.tokens);
+			}
 		}
 		else
 		{

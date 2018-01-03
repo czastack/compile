@@ -129,7 +129,7 @@ struct Token
 class LexicalScanner
 {
 public:
-	void scan(std::string &src);
+	bool scan(std::string &src);
 	void reset();
 	int appendSymbal(std::string &item);
 

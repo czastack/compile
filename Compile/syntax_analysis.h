@@ -50,8 +50,8 @@ public:
 		right_src.insert(s);
 	}
 
-	// 会推出空
-	bool contains_empty();
+	// 该文法存在产生式会推出空
+	bool elicit_empty();
 
 	void print_vt(VT &vt);
 	void print_first();

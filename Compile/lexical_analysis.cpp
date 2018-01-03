@@ -126,7 +126,7 @@ string filterSource(string &src)
 {
 	src.append("\n");
 	ostringstream os;
-	for (size_t i = 0; i <= src.size(); i++)
+	for (size_t i = 0; i < src.size(); i++)
 	{
 		if (src[i] == '/' && src[i + 1] == '/')
 		{
@@ -161,7 +161,7 @@ string filterSource(string &src)
 	return os.str();
 }
 
-void LexicalScanner::scan(std::string & src)
+bool LexicalScanner::scan(std::string & src)
 {
 	ostringstream token_stream;
 	string token;
@@ -173,6 +173,10 @@ void LexicalScanner::scan(std::string & src)
 		{
 			++i;
 		};
+		if (i == src.size())
+		{
+			break;
+		}
 
 		token_stream.str("");
 
@@ -284,10 +288,11 @@ void LexicalScanner::scan(std::string & src)
 			else
 			{
 				cout << "无法识别的符号: " << ch << endl;
-				return;
+				return false;
 			}
 		}
 	}
+	return true;
 }
 
 void LexicalScanner::reset()
