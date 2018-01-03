@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include "lexical_analysis.h"
+#include "syntax_analysis.h"
 using namespace std;
 
 
@@ -17,7 +18,7 @@ int main(int argc, char *argv[])
 		input_file = "src.cpp";
 	}
 
-	ifstream file(input_file, ios::in);
+	/*ifstream file(input_file, ios::in);
 	if (file)
 	{
 		ostringstream os;
@@ -35,6 +36,21 @@ int main(int argc, char *argv[])
 	else
 	{
 		cout << input_file << "不存在" << endl;
+	}*/
+
+	SyntaxAnalyzer syntax;
+	ifstream grammar_file("grammar.txt", ios::in);
+	if (grammar_file)
+	{
+		ostringstream os;
+		os << grammar_file.rdbuf();
+		string grammar = os.str();
+		syntax.init(grammar);
 	}
+	else
+	{
+		cout << "文法文件grammar.txt不存在" << endl;
+	}
+
     return 0;
 }

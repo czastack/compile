@@ -6,12 +6,19 @@
 
 #include <string>
 #include <vector>
+#include "common.h"
 
 // 保留字表
-extern char RESERVE_WORD[31][10];
+extern char RESERVE_WORD[38][10];
 
 // 界符运算符表
-extern char OPERATOR_OR_DELIMITER[36][3];
+extern char OPERATOR_OR_DELIMITER[37][3];
+
+enum 
+{
+	RESERVE_WORD_LEN = lengthof(RESERVE_WORD),
+	OPERATOR_OR_DELIMITER_LEN = lengthof(OPERATOR_OR_DELIMITER)
+};
 
 enum SYN
 {
@@ -48,17 +55,29 @@ enum SYN
 	SYN_VOLATILE,
 	SYN_WHILE,
 
+	SYN_DESCRIBE,
+	SYN_TYPE,
+	SYN_ID,
+	SYN_STRING,
+	SYN_DIGIT,
+	SYN_EMPTY,
+	SYN_START,
+
+	SYN_PTR,
 	SYN_ADD,
 	SYN_SUB,
 	SYN_MUL,
 	SYN_DIV,
-	SYN_LT,
+	SYN_MOD,
+	SYN_LEFT_SHIFT,
+	SYN_RIGHT_SHIFT,
 	SYN_LTE,
-	SYN_GT,
 	SYN_GTE,
 	SYN_EQ,
-	SYN_ASSIGN,
 	SYN_NE,
+	SYN_LT,
+	SYN_GT,
+	SYN_ASSIGN,
 	SYN_SEMICOLON,
 	SYN_LEFT_BRACKET,
 	SYN_RIGHT_BRACKET,
@@ -67,14 +86,11 @@ enum SYN
 	SYN_DQUOTE,
 	SYN_SQUOTE,
 	SYN_SHARP,
-	SYN_AND,
 	SYN_LOGICAL_AND,
-	SYN_OR,
 	SYN_LOGICAL_OR,
-	SYN_MOD,
+	SYN_AND,
+	SYN_OR,
 	SYN_TILDE,
-	SYN_LEFT_SHIFT,
-	SYN_RIGHT_SHIFT,
 	SYN_LEFT_SQUARE_BRACKET,
 	SYN_RIGHT_SQUARE_BRACKET,
 	SYN_LEFT_CURLY_BRACKET,
@@ -88,8 +104,8 @@ enum SYN
 	SYN_CNUM, // char 常量
 	SYN_INUM, // int 常量
 	SYN_FNUM, // float 常量
-	SYN_STRING,
 	SYN_IDENT,
+	SYN_MAX
 };
 
 
@@ -129,9 +145,19 @@ public:
 int findReserve(const char *s);
 
 /**
- * 查找界符运算符字
+ * 查找界符运算符
  */
 int findOperatorOrDelimiter(const char *s);
+
+/*
+ * 匹配保留字或界符运算符
+ */
+int matchPreset(const char *s, int *pLen=nullptr);
+
+/*
+ * 根据序号获取对应的保留字或界符运算符的文本
+ */
+const char* getPresetStr(int value);
 
 /**
  * 判断是否为字母

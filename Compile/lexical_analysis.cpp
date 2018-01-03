@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <iostream>
-#include <string>
 #include <sstream>
 #include <algorithm>
 #include "lexical_analysis.h"
@@ -16,14 +15,15 @@ DEFINE(RESERVE_WORD) = {
 	"float", "for", "goto", "if", "int", "long",
 	"return", "short", "signed", "sizeof", "static",
 	"struct", "switch", "typedef", "union", "unsigned", "void",
-	"volatile", "while"
+	"volatile", "while",
+	"describe", "type", "id", "digit", "string", "$", "#" // 为语法分析预留的
 };
 
 // 界符运算符表
 DEFINE(OPERATOR_OR_DELIMITER) = {
-	"+","-","*","/","<","<=",">",">=","=","==",
-	"!=",";","(",")","^",",","\"","'","#","&",
-	"&&","|","||","%","~","<<",">>","[","]","{",
+	"->","+","-","*","/","%","<<",">>","<=",">=","==","!=","<",">","=",
+	";","(",")","^",",","\"","'","#",
+	"&&","||","&","|","~","[","]","{",
 	"}","\\",".","\?",":","!"
 };
 
@@ -33,14 +33,14 @@ DEFINE(OPERATOR_OR_DELIMITER) = {
  */
 int findReserve(const char *s)
 {
-	for (size_t i = 0; i < lengthof(RESERVE_WORD); i++)
+	for (size_t i = 0; i < RESERVE_WORD_LEN; i++)
 	{
 		if (strcmp(RESERVE_WORD[i], s) == 0)
 		{
-			return i + 1; //返回种别码
+			return (int)(i + 1); //返回种别码
 		}
 	}
-	return -1; // 查找不成功，即为标识符
+	return 0; // 查找不成功，即为标识符 0同时可以代表空($)
 }
 
 /**
@@ -48,14 +48,57 @@ int findReserve(const char *s)
  */
 int findOperatorOrDelimiter(const char *s)
 {
-	for (size_t i = 0; i < lengthof(OPERATOR_OR_DELIMITER); i++)
+	for (size_t i = 0; i < OPERATOR_OR_DELIMITER_LEN; i++)
 	{
 		if (strcmp(OPERATOR_OR_DELIMITER[i], s) == 0)
 		{
-			return lengthof(RESERVE_WORD) + 1 + i; //返回种别码
+			return (int)(RESERVE_WORD_LEN + 1 + i); //返回种别码
 		}
 	}
-	return -1;
+	return 0;
+}
+
+int matchPreset(const char * s, int *pLen)
+{
+	// 查找保留字
+	size_t len;
+	for (size_t i = 0; i < RESERVE_WORD_LEN; i++)
+	{
+		if (strncmp(RESERVE_WORD[i], s, (len = strlen(RESERVE_WORD[i]))) == 0)
+		{
+			if (pLen)
+			{
+				*pLen = (int)len;
+			}
+			return (int)(i + 1); // 返回种别码
+		}
+	}
+	// 查找界符运算符字
+	for (size_t i = 0; i < OPERATOR_OR_DELIMITER_LEN; i++)
+	{
+		if (strncmp(OPERATOR_OR_DELIMITER[i], s, (len = strlen(OPERATOR_OR_DELIMITER[i]))) == 0)
+		{
+			if (pLen)
+			{
+				*pLen = (int)len;
+			}
+			return (int)(RESERVE_WORD_LEN + 1 + i); //返回种别码
+		}
+	}
+	return 0;
+}
+
+const char * getPresetStr(int value)
+{
+	if (value <= RESERVE_WORD_LEN)
+	{
+		return RESERVE_WORD[value - 1];
+	}
+	else if (value <= (RESERVE_WORD_LEN + OPERATOR_OR_DELIMITER_LEN))
+	{
+		return OPERATOR_OR_DELIMITER[value - RESERVE_WORD_LEN - 1];
+	}
+	return nullptr;
 }
 
 
@@ -143,7 +186,7 @@ void LexicalScanner::scan(std::string & src)
 			}
 			token = token_stream.str();
 			syn = findReserve(token.c_str());
-			if (syn != -1)
+			if (syn)
 			{
 				tokens.emplace_back(syn);
 			}
@@ -225,12 +268,12 @@ void LexicalScanner::scan(std::string & src)
 			token_stream << ch;
 			token = token_stream.str();
 			syn = findOperatorOrDelimiter(token.c_str());
-			if (syn != -1)
+			if (syn)
 			{
 				token_stream << src[i + 1];
 				token = token_stream.str();
 				int syn_tmp = findOperatorOrDelimiter(token.c_str());
-				if (syn_tmp != -1)
+				if (syn_tmp)
 				{
 					syn = syn_tmp;
 					++i;
@@ -264,7 +307,7 @@ int LexicalScanner::appendSymbal(std::string &item)
 	}
 	else
 	{
-		index = it - symbals.begin();
+		index = (int)(it - symbals.begin());
 	}
 	return index;
 }
