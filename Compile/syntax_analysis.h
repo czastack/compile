@@ -74,8 +74,7 @@ public:
 	// 求一个产生式的First集
 	VT formula_first(const Formula& formula);
 	void make_table();
-	void print(int steps, std::stack<std::string> &stk, const std::string &src, const std::string &wf, int x);
-	void analyse(const std::string& src);
+	void analyse(std::vector<Token> &tokens);
 	void print_wf(const WF &wf);
 	void print_formula(const Formula &formula);
 };

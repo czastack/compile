@@ -16,12 +16,12 @@ DEFINE(RESERVE_WORD) = {
 	"return", "short", "signed", "sizeof", "static",
 	"struct", "switch", "typedef", "union", "unsigned", "void",
 	"volatile", "while",
-	"describe", "type", "id", "digit", "string", "$", "#" // 为语法分析预留的
+	"id", "string", "cnum", "inum", "fnum", "$", "#" // 为语法分析预留的
 };
 
 // 界符运算符表
 DEFINE(OPERATOR_OR_DELIMITER) = {
-	"->","+","-","*","/","%","<<",">>","<=",">=","==","!=","<",">","=",
+	"->","++","--","+","-","*","/","%","<<",">>","<=",">=","==","!=","<",">","=",
 	";","(",")","^",",","\"","'","#",
 	"&&","||","&","|","~","[","]","{",
 	"}","\\",".","\?",":","!"
@@ -193,7 +193,7 @@ void LexicalScanner::scan(std::string & src)
 			else
 			{
 				// 若不是保留字则是标识符
-				syn = SYN_IDENT;
+				syn = SYN_ID;
 				tokens.emplace_back(syn, appendSymbal(token));
 			}
 		}

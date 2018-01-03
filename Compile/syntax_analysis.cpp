@@ -43,7 +43,7 @@ void SyntaxAnalyzer::init(const string & grammar)
 			Formula formula; // 增加一条产生式
 			for (size_t i = 0; i < it.length(); i++)
 			{
-				if (it[i] == '<' && it.length() != 1)
+				if (it[i] == '<' && it.length() > 2)
 				{
 					// 非终结符
 					// 若Ａ->B…，则将First(B)并入First(A)
@@ -336,63 +336,68 @@ void SyntaxAnalyzer::make_table()
 #endif
 }
 
-void SyntaxAnalyzer::print(int steps, stack<string> &stk, const string &src, const string &wf, int x)
+void SyntaxAnalyzer::analyse(vector<Token> &tokens)
 {
-	printf("%-10d", steps);
-	string out = "";
-	while (!stk.empty())
-	{
-		out = stk.top() + out;
-		stk.pop();
-	}
-	printf("#%-9s", out.c_str());
-	out = "";
-	for (int i = x; i < src.length(); i++)
-		out += src[i];
-	printf("%-10s", (out + "#").c_str());
-	printf("%-10s\n", wf.c_str());
-}
+	stack<FormulaNode> stk;
+	stk.emplace(false, SYN_START);
+	stk.emplace(true, 0);
+	int steps = 0; // 步骤序号
+	int idx = 0; // token 序号
+	auto tokenIt = tokens.begin();
 
-void SyntaxAnalyzer::analyse(const string& src)
-{
-	/*stack<string> stk;
-	stk.push("E");
-	int steps = 0;
-	int idx = 0;
 	printf("%-10s%-10s%-10s%-10s\n", "步骤", "符号栈", "输入串", "所用产生式");
+
 	while (!stk.empty())
 	{
-		string u = stk.top();
+		FormulaNode &node = stk.top();
 		string tmp = "";
 		stk.pop();
-		if (!isupper(u[0]))
+		if (!node.non)
 		{
-			if (idx == src.length() && u[0] == SYN_EMPTY);
-			else if (src[idx] == u[0])
-				idx++;
+			// IF X ∈ Vt THEN
+			// IF X = b THEN 把下一个输入符号读进b；
+			//	 ELSE ERROR
+			if (tokenIt == tokens.end() && node.value == SYN_EMPTY);
+			else if (tokenIt->syn == node.value)
+			{
+				cout << " " << getPresetStr(tokenIt->syn);
+				++tokenIt;
+			}
+			else
+			{
+				cout << "符号串不是该文法的句子，分析栈顶终结符" << getPresetStr(node.value)
+					<< "与余串开头" << getPresetStr(tokenIt->syn) << "不一致" << endl;
+				return;
+			}
 		}
 		else
 		{
-			int x = VN_dic[u];
-			tmp = predict_table[x][src[idx]];
-			for (size_t i = tmp.length() - 1; i >= 0; i--)
+			// 非终结符
+			auto &wf = VN_set[node.value];
+			int p = wf.predict_table[tokenIt->syn];
+			if (!p)
 			{
-				if (tmp[i] == '\'')
+				cout << "查预测表出错, M[" << wf.left << "][" << getPresetStr(tokenIt->syn) << "] 为空" << endl;
+				return;
+			}
+			else
+			{
+				auto &formula = wf.right[p - 1];
+				/*cout << "使用产生式";
+				cout << wf.left << " -> ";
+				print_formula(formula);
+				cout << endl;*/
+				auto pNode = formula.rbegin();
+				if (pNode->value != SYN_EMPTY)
 				{
-					string v = tmp.substr(i - 1, 2);
-					stk.push(v);
-					i--;
-				}
-				else
-				{
-					string v = tmp.substr(i, 1);
-					stk.push(v);
+					for (; pNode != formula.rend(); ++pNode)
+					{
+						stk.push(*pNode);
+					}
 				}
 			}
-			tmp = u + "->" + tmp;
 		}
-		print(steps++, stk, src, tmp, idx);
-	}*/
+	}
 }
 
 void SyntaxAnalyzer::print_wf(const WF & wf)

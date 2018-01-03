@@ -18,26 +18,6 @@ int main(int argc, char *argv[])
 		input_file = "src.cpp";
 	}
 
-	/*ifstream file(input_file, ios::in);
-	if (file)
-	{
-		ostringstream os;
-		os << file.rdbuf();
-		string buff = os.str();
-		buff = filterSource(buff);
-		// cout << buff;
-		LexicalScanner scaner;
-		scaner.scan(buff);
-		for (auto &s: scaner.symbals)
-		{
-			cout << s << endl;
-		}
-	}
-	else
-	{
-		cout << input_file << "不存在" << endl;
-	}*/
-
 	SyntaxAnalyzer syntax;
 	ifstream grammar_file("grammar.txt", ios::in);
 	if (grammar_file)
@@ -46,6 +26,24 @@ int main(int argc, char *argv[])
 		os << grammar_file.rdbuf();
 		string grammar = os.str();
 		syntax.init(grammar);
+
+		// 读入目标源码
+		ifstream file(input_file, ios::in);
+		if (file)
+		{
+			ostringstream os;
+			os << file.rdbuf();
+			string buff = os.str();
+			buff = filterSource(buff);
+			// cout << buff;
+			LexicalScanner lexical;
+			lexical.scan(buff);
+			syntax.analyse(lexical.tokens);
+		}
+		else
+		{
+			cout << input_file << "不存在" << endl;
+		}
 	}
 	else
 	{

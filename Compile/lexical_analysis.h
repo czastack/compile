@@ -12,7 +12,7 @@
 extern char RESERVE_WORD[38][10];
 
 // 界符运算符表
-extern char OPERATOR_OR_DELIMITER[37][3];
+extern char OPERATOR_OR_DELIMITER[39][3];
 
 enum 
 {
@@ -55,15 +55,17 @@ enum SYN
 	SYN_VOLATILE,
 	SYN_WHILE,
 
-	SYN_DESCRIBE,
-	SYN_TYPE,
 	SYN_ID,
 	SYN_STRING,
-	SYN_DIGIT,
+	SYN_CNUM, // char 常量
+	SYN_INUM, // int 常量
+	SYN_FNUM, // float 常量
 	SYN_EMPTY,
 	SYN_START,
 
 	SYN_PTR,
+	SYN_IADD,
+	SYN_ISUB,
 	SYN_ADD,
 	SYN_SUB,
 	SYN_MUL,
@@ -101,10 +103,6 @@ enum SYN
 	SYN_COLON,
 	SYN_NOT,
 
-	SYN_CNUM, // char 常量
-	SYN_INUM, // int 常量
-	SYN_FNUM, // float 常量
-	SYN_IDENT,
 	SYN_MAX
 };
 
