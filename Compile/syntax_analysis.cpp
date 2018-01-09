@@ -109,10 +109,11 @@ void SyntaxAnalyzer::make_first()
 	}
 	delete[] visied;
 #ifdef DEBUG
-	cout << "***************FIRST集***********************";
+	cout << endl << "***************FIRST集***********************" << endl;
 	for (auto &wf : VN_set)
 	{
 		wf.print_first();
+		cout << endl;
 	}
 #endif
 }
@@ -251,10 +252,11 @@ void SyntaxAnalyzer::make_follow()
 	VN_set[0].follow.insert(SYN_START);
 
 #ifdef DEBUG
-	cout << "****************FOLLOW集**********************";
+	cout << endl << "****************FOLLOW集**********************" << endl;
 	for (auto &wf : VN_set)
 	{
 		wf.print_follow();
+		cout << endl;
 	}
 #endif
 }
@@ -350,10 +352,7 @@ void SyntaxAnalyzer::make_table()
 		}
 	}
 #ifdef DEBUG
-	/*for (auto t: letter)
-	{
-		cout << getPresetStr(t) << " ";
-	}*/
+	cout << endl << "***************预测分析表***********************" << endl;
 
 	for (auto &wf: VN_set)
 	{
@@ -438,10 +437,34 @@ bool SyntaxAnalyzer::analyse(vector<Token> &tokens)
 			{
 				// 应用产生式
 				auto &formula = wf.right[p - 1];
-				/*cout << "使用产生式";
+
+#ifdef DEBUG
+				cout << endl;
+				cout << "使用产生式";
 				cout << wf.left << " -> ";
 				print_formula(formula);
-				cout << endl;*/
+				cout << endl;
+
+				// 剩余输入串
+				cout << "剩余输入串";
+				for (auto it = tokenIt; it != tokens.end(); ++it)
+				{
+					if (it->syn == SYN_ID)
+					{
+						cout << m_lex.symbals[it->index];
+					}
+					else if (it->syn == SYN_INUM)
+					{
+						cout << it->ival;
+					}
+					else
+					{
+						cout << getPresetStr(it->syn);
+					}
+				}
+				cout << endl;
+#endif // DEBUG
+
 				auto pNode = formula.rbegin();
 				if (pNode->non || pNode->value != SYN_EMPTY)
 				{
@@ -657,7 +680,7 @@ void SyntaxAnalyzer::print_formula(const Formula & formula)
 
 void SyntaxAnalyzer::print_quads()
 {
-	cout << "***************四元式***********************" << endl;
+	cout << endl << "***************四元式***********************" << endl;
 	int i = 0;
 	for (auto &quad : quads)
 	{

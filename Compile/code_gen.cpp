@@ -6,7 +6,7 @@ using namespace std;
 
 void code_gen(std::vector<Quad>& quads)
 {
-	cout << "***************目标代码***********************" << endl;
+	cout << endl << "***************目标代码***********************" << endl;
 	cout << "assume cs:code, ds:data" << endl;
 	vector<string> vars;
 	vector<int> labels;
