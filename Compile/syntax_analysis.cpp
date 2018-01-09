@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include "syntax_analysis.h"
 
@@ -14,7 +14,7 @@ void SyntaxAnalyzer::init(const string & grammar)
 	while (getline(iss, line))
 	{
 		size_t m = line.find('-');
-		size_t n;
+		size_t n, end;
 		if (m != -1)
 		{
 			left = line.substr(0, m);
@@ -26,10 +26,16 @@ void SyntaxAnalyzer::init(const string & grammar)
 			WF &wf = VN_set[VN_dic[left]];
 			m += 2;
 
-			while ((n = line.find('|', m)) != -1)
+			end = m;
+			while ((n = line.find('|', end)) != -1)
 			{
+				if (line[n + 1] == '|')
+				{
+					end = n + 2;
+					continue;
+				}
 				wf.insert(line.substr(m, n - m));
-				m = n + 1;
+				end = m = n + 1;
 			}
 			wf.insert(line.substr(m));
 		}
@@ -43,7 +49,7 @@ void SyntaxAnalyzer::init(const string & grammar)
 			Formula formula; // 增加一条产生式
 			for (size_t i = 0; i < it.length(); i++)
 			{
-				if (it[i] == '<' && it.length() > 2)
+				if (it[i] == '<' && i != it.length() - 1 && it.length() > 2)
 				{
 					// 非终结符
 					// 若Ａ->B…，则将First(B)并入First(A)
@@ -88,27 +94,22 @@ void SyntaxAnalyzer::init(const string & grammar)
 	make_first();
 	make_follow();
 	make_table();
-}
 
-WF& SyntaxAnalyzer::get_rule(const string & left, int *pIndex)
-{
-	int index = VN_dic[left];
-	if (pIndex)
-	{
-		*pIndex = index;
-	}
-	return VN_set[index];
+	temp_count = 0;
+	m_op = 0;
 }
 
 void SyntaxAnalyzer::make_first()
 {
-	memset(used, 0, sizeof(used));
+	bool *visied = new bool[VN_set.size()];
+	memset(visied, 0, VN_set.size());
 	for (int i = 0; i < VN_set.size(); i++)
 	{
-		dfs(i);
+		first_dfs(i, visied);
 	}
+	delete[] visied;
 #ifdef DEBUG
-	puts("***************FIRST集***********************");
+	cout << "***************FIRST集***********************";
 	for (auto &wf : VN_set)
 	{
 		wf.print_first();
@@ -116,11 +117,12 @@ void SyntaxAnalyzer::make_first()
 #endif
 }
 
-void SyntaxAnalyzer::dfs(int x)
+void SyntaxAnalyzer::first_dfs(int n, bool *visied)
 {
-	if (used[x]) return;
-	used[x] = true;
-	auto &wf = VN_set[x];
+	if (visied[n])
+		return;
+	visied[n] = true;
+	auto &wf = VN_set[n];
 	for (auto &formula: wf.right)
 	{
 		for (auto &node: formula)
@@ -130,7 +132,7 @@ void SyntaxAnalyzer::dfs(int x)
 				// 非终结符
 				// 若Ａ->B…，则将First(B)并入First(A)
 				WF &wfB = VN_set[node.value];
-				dfs(node.value); // 先递归求First(B)
+				first_dfs(node.value, visied); // 先递归求First(B)
 				bool flag = true;
 				for (auto itb: wfB.first)
 				{
@@ -141,7 +143,7 @@ void SyntaxAnalyzer::dfs(int x)
 				}
 				if (flag) break; // 若Ａ->XB…或Ａ->Xa…，且X->ε
 			}
-			else
+			else if (!isActionSign(node.value))
 			{
 				wf.first.insert(node.value);
 				break;
@@ -158,7 +160,15 @@ void SyntaxAnalyzer::make_follow()
 		{
 			for (auto &formula : wf.right)
 			{
-				for (auto pNode = formula.begin(), end = formula.end(); pNode != end; ++pNode)
+				auto end = formula.end();
+				if (!formula.empty())
+				{
+					while (isActionSign((end - 1)->value))
+					{
+						--end;
+					}
+				}
+				for (auto pNode = formula.begin(); pNode != end; ++pNode)
 				{
 					if (pNode->non)
 					{
@@ -216,6 +226,10 @@ void SyntaxAnalyzer::make_follow()
 								}
 								else
 								{
+									if (isActionSign(pNodeAfter->value))
+									{
+										continue;
+									}
 									// 产生式形如B→xAy (y为终极符)
 									// 将y并入Follow(A)
 									if (wf_a.follow.find(pNodeAfter->value) == wf_a.follow.end())
@@ -237,7 +251,7 @@ void SyntaxAnalyzer::make_follow()
 	VN_set[0].follow.insert(SYN_START);
 
 #ifdef DEBUG
-	puts("****************FOLLOW集**********************");
+	cout << "****************FOLLOW集**********************";
 	for (auto &wf : VN_set)
 	{
 		wf.print_follow();
@@ -265,7 +279,7 @@ VT SyntaxAnalyzer::formula_first(const Formula & formula)
 			}
 			if (flag) break; // 若Ａ->XB…或Ａ->Xa…，且X->ε
 		}
-		else
+		else if (!isActionSign(node.value))
 		{
 			vt.insert(node.value);
 			break;
@@ -300,7 +314,7 @@ void SyntaxAnalyzer::make_table()
 							break;
 						}
 					}
-					else
+					else if (!isActionSign(node.value))
 					{
 						// 遇到非空终结符，说明不会推出空
 						make_empty = false;
@@ -357,40 +371,57 @@ void SyntaxAnalyzer::make_table()
 #endif
 }
 
-void SyntaxAnalyzer::analyse(vector<Token> &tokens)
+bool SyntaxAnalyzer::analyse(vector<Token> &tokens)
 {
-	stack<FormulaNode> stk;
+	stack<FormulaNode> stk; // 符号栈
 	stk.emplace(false, SYN_START);
 	stk.emplace(true, 0);
 	int steps = 0; // 步骤序号
 	int idx = 0; // token 序号
 	auto tokenIt = tokens.begin();
 
-	// printf("%-10s%-10s%-10s%-10s\n", "步骤", "符号栈", "输入串", "所用产生式");
-
 	while (!stk.empty())
 	{
-		FormulaNode &node = stk.top();
-		string tmp = "";
+		FormulaNode node = stk.top();
 		stk.pop();
 		if (!node.non)
 		{
-			// IF X ∈ Vt THEN
-			// IF X = b THEN 把下一个输入符号读进b；
-			//	 ELSE ERROR
-			if (tokenIt == tokens.end() && node.value == SYN_START)
+			// 终结符
+			if (isActionSign(node.value))
 			{
-				cout << "匹配成功，符号串是该文法的句子" << endl;
-			}
-			else if (tokenIt->syn == node.value)
-			{
-				++tokenIt;
+				// 语义动作
+				// cout << getPresetStr(node.value) << endl;
+				handleActionSign(node.value, *tokenIt);
 			}
 			else
 			{
-				cout << "符号串不是该文法的句子，分析栈顶终结符" << getPresetStr(node.value)
-					<< "与余串开头" << getPresetStr(tokenIt->syn) << "不一致" << endl;
-				return;
+				// IF X ∈ Vt THEN
+				// IF X = b THEN 把下一个输入符号读进b；
+				//	 ELSE ERROR
+				if (tokenIt == tokens.end())
+				{
+					if (node.value == SYN_START)
+					{
+						cout << "匹配成功，符号串是该文法的句子" << endl;
+						// 打印四元式
+						print_quads();
+						return true;
+					}
+					else
+					{
+						cout << getPresetStr(node.value) << endl;
+					}
+				}
+				else if (tokenIt->syn == node.value)
+				{
+					++tokenIt;
+				}
+				else
+				{
+					cout << "符号串不是该文法的句子，分析栈顶终结符" << getPresetStr(node.value)
+						<< "与余串开头" << getPresetStr(tokenIt->syn) << "不一致" << endl;
+					return false;
+				}
 			}
 		}
 		else
@@ -401,10 +432,11 @@ void SyntaxAnalyzer::analyse(vector<Token> &tokens)
 			if (!p)
 			{
 				cout << "查预测表出错, M[" << wf.left << "][" << getPresetStr(tokenIt->syn) << "] 为空" << endl;
-				return;
+				return false;
 			}
 			else
 			{
+				// 应用产生式
 				auto &formula = wf.right[p - 1];
 				/*cout << "使用产生式";
 				cout << wf.left << " -> ";
@@ -422,6 +454,169 @@ void SyntaxAnalyzer::analyse(vector<Token> &tokens)
 			}
 		}
 	}
+	return false;
+}
+
+void SyntaxAnalyzer::handleActionSign(int action, const Token &token)
+{
+	string op, ARG1, ARG2, RES;
+	switch (action)
+	{
+	case ACT_ADD_SUB:
+		if (m_op == SYN_ADD || m_op == SYN_SUB)
+		{
+			ARG2 = semanticStack.top();
+			semanticStack.pop();
+			ARG1 = semanticStack.top();
+			semanticStack.pop();
+			RES = newTemp();
+			newQuad(getPresetStr(m_op), ARG1.c_str(), ARG2.c_str(), RES.c_str());
+			semanticStack.push(RES);
+			m_op = 0;
+		}
+		break;
+	case ACT_ADD:
+		m_op = SYN_ADD;
+		break;
+	case ACT_SUB:
+		m_op = SYN_SUB;
+		break;
+	case ACT_DIV_MUL:
+		if (m_op == SYN_MUL || m_op == SYN_DIV)
+		{
+			ARG2 = semanticStack.top();
+			semanticStack.pop();
+			ARG1 = semanticStack.top();
+			semanticStack.pop();
+			RES = newTemp();
+			newQuad(getPresetStr(m_op), ARG1.c_str(), ARG2.c_str(), RES.c_str());
+			semanticStack.push(RES);
+			m_op = 0;
+		}
+		break;
+	case ACT_DIV:
+		m_op = SYN_DIV;
+		break;
+	case ACT_MUL:
+		m_op = SYN_MUL;
+		break;
+	case ACT_TRAN_LF:
+		// F_value = L_value;
+		break;
+	case ACT_ASSIGN:
+		if (token.syn == SYN_ID)
+		{
+			semanticStack.push(m_lex.symbals[token.index]);
+		}
+		else
+		{
+			semanticStack.push(to_string(token.ival));
+		}
+		break;
+	case ACT_SINGLE:
+		if (!for_op.empty() && for_op.top())
+		{
+			ARG1 = semanticStack.top();
+			semanticStack.pop();
+			RES = ARG1;
+			newQuad(getPresetStr(for_op.top()), ARG1.c_str(), "/", RES.c_str());
+			for_op.pop();
+		}
+		break;
+	case ACT_SINGLE_OP:
+		for_op.push(token.syn);
+		break;
+	case ACT_EQ:
+		ARG1 = semanticStack.top();
+		semanticStack.pop();
+		RES = semanticStack.top();
+		semanticStack.pop();
+		newQuad(getPresetStr(SYN_ASSIGN), ARG1.c_str(), "/", RES.c_str());
+		break;
+	case ACT_COMPARE:
+		ARG2 = semanticStack.top();
+		semanticStack.pop();
+		op = semanticStack.top();
+		semanticStack.pop();
+		ARG1 = semanticStack.top();
+		semanticStack.pop();
+		RES = newTemp();
+		newQuad(op.c_str(), ARG1.c_str(), ARG2.c_str(), RES.c_str());
+		semanticStack.push(RES);
+		break;
+	case ACT_COMPARE_OP:
+		semanticStack.push(getPresetStr(token.syn));
+		break;
+	case ACT_IF_FJ:
+		ARG1 = semanticStack.top();
+		semanticStack.pop();
+		newQuad("FJ", "", ARG1.c_str(), "/");
+		fj_stack.push((int)quads.size());
+		break;
+	case ACT_IF_BACKPATCH_FJ:
+		backpatch(fj_stack.top(), (int)quads.size() + 2);
+		fj_stack.pop();
+		break;
+	case ACT_IF_RJ:
+		newQuad("RJ", "/", "/", "/");
+		rj_stack.push((int)quads.size());
+		break;
+	case ACT_IF_BACKPATCH_RJ:
+		backpatch(rj_stack.top(), (int)quads.size() + 1);
+		rj_stack.pop();
+		break;
+	case ACT_WHILE_FJ:
+		ARG1 = semanticStack.top();
+		semanticStack.pop();
+		newQuad("FJ", "", ARG1.c_str(), "/");
+		fj_stack.push((int)quads.size());
+		break;
+	case ACT_WHILE_RJ:
+		ARG1 = to_string(fj_stack.top() - 1);
+		newQuad("RJ", ARG1.c_str(), "/", "/");
+		break;
+	case ACT_WHILE_BACKPATCH_FJ:
+		backpatch(fj_stack.top(), (int)quads.size() + 1);
+		fj_stack.pop();
+		break;
+	case ACT_FOR_FJ:
+		ARG1 = semanticStack.top();
+		semanticStack.pop();
+		newQuad("FJ", "", ARG1.c_str(), "/");
+		fj_stack.push((int)quads.size());
+		break;
+	case ACT_FOR_RJ:
+		ARG1 = to_string(fj_stack.top() - 1);
+		newQuad("RJ", ARG1.c_str(), "/", "/");
+		break;
+	case ACT_FOR_BACKPATCH_FJ:
+		backpatch(fj_stack.top(), (int)quads.size() + 1);
+		fj_stack.pop();
+		break;
+	}
+}
+
+std::string SyntaxAnalyzer::newTemp()
+{
+	string result = to_string(++temp_count);
+	result.insert(0, "T");
+	return result;
+}
+
+Quad & SyntaxAnalyzer::newQuad(const char * op, const char * ag1, const char * ag2, const char * result)
+{
+	quads.emplace_back();
+	auto &quad = quads.back();
+	strcpy(quad.op, op);
+	strcpy(quad.arg1, ag1);
+	strcpy(quad.arg2, ag2);
+	strcpy(quad.result, result);
+	return quad;
+}
+
+void SyntaxAnalyzer::backpatch(int i, int res)
+{
+	sprintf(quads[i - 1].arg1, "%d", res);
 }
 
 void SyntaxAnalyzer::print_wf(const WF & wf)
@@ -455,8 +650,19 @@ void SyntaxAnalyzer::print_formula(const Formula & formula)
 		}
 		if (text)
 		{
-			printf(text);
+			cout << text;
 		}
+	}
+}
+
+void SyntaxAnalyzer::print_quads()
+{
+	cout << "***************四元式***********************" << endl;
+	int i = 0;
+	for (auto &quad : quads)
+	{
+		cout << setw(2) << ++i << " ";
+		quad.print();
 	}
 }
 
@@ -471,25 +677,31 @@ void WF::print_vt(VT &vt)
 	bool flag = false;
 	for (auto t : vt)
 	{
-		if (flag) printf(",");
+		if (flag) 
+			cout << ",";
 		const char* text = getPresetStr(t);
 		if (text)
 		{
-			printf(text);
+			cout << text;
 		}
 		flag = true;
 	}
-	puts("}");
+	cout << "}";
 }
 
 void WF::print_first()
 {
-	printf("FIRST(%s)={", left.c_str());
+	cout << "FIRST(" << left.c_str() << ")={";
 	print_vt(first);
 }
 
 void WF::print_follow()
 {
-	printf("FOLLOW(%s)={", left.c_str());
+	cout << "FOLLOW(" << left.c_str() << ")={";
 	print_vt(follow);
+}
+
+void Quad::print()
+{
+	cout << "(" << op << ", " << arg1 << ", " << arg2 << ", " << result << ")" << endl;
 }

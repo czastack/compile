@@ -16,7 +16,7 @@ DEFINE(RESERVE_WORD) = {
 	"return", "short", "signed", "sizeof", "static",
 	"struct", "switch", "typedef", "union", "unsigned", "void",
 	"volatile", "while",
-	"id", "string", "cnum", "inum", "fnum", "$", "#" // 为语法分析预留的
+	"main", "printf", "scanf", "id", "string", "cnum", "inum", "fnum", "$", "#" // 为语法分析预留的
 };
 
 // 界符运算符表
@@ -25,6 +25,13 @@ DEFINE(OPERATOR_OR_DELIMITER) = {
 	";","(",")","^",",","\"","'","#",
 	"&&","||","&","|","~","[","]","{",
 	"}","\\",".","\?",":","!"
+};
+
+// 语义动作符号
+DEFINE(ACTIONSIGN) = {
+	"@ASSIGN", "@EQ", "@ADD_SUB", "@ADD", "@SUB", "@DIV_MUL", "@DIV", "@MUL",
+	"@TRAN_LF", "@SINGLE_OP", "@COMPARE_OP", "@COMPARE", "@IF_FJ", "@IF_BACKPATCH_FJ", "@IF_RJ", "@IF_BACKPATCH_RJ",
+	"@WHILE_FJ", "@WHILE_RJ", "@WHILE_BACKPATCH_FJ", "@FOR_FJ", "@SINGLE", "@FOR_RJ", "@FOR_BACKPATCH_FJ"
 };
 
 
@@ -52,7 +59,22 @@ int findOperatorOrDelimiter(const char *s)
 	{
 		if (strcmp(OPERATOR_OR_DELIMITER[i], s) == 0)
 		{
-			return (int)(RESERVE_WORD_LEN + 1 + i); //返回种别码
+			return (int)(OPERATOR_OR_DELIMITER_START + 1 + i); //返回种别码
+		}
+	}
+	return 0;
+}
+
+/**
+ * 语义动作
+ */
+int findActionSign(const char *s)
+{
+	for (size_t i = 0; i < ACTIONSIGN_LEN; i++)
+	{
+		if (strcmp(ACTIONSIGN[i], s) == 0)
+		{
+			return (int)(ACTIONSIGN_START + 1 + i); //返回种别码
 		}
 	}
 	return 0;
@@ -82,7 +104,19 @@ int matchPreset(const char * s, int *pLen)
 			{
 				*pLen = (int)len;
 			}
-			return (int)(RESERVE_WORD_LEN + 1 + i); //返回种别码
+			return (int)(OPERATOR_OR_DELIMITER_START + 1 + i); //返回种别码
+		}
+	}
+	// 语义动作
+	for (size_t i = 0; i < ACTIONSIGN_LEN; i++)
+	{
+		if (strncmp(ACTIONSIGN[i], s, (len = strlen(ACTIONSIGN[i]))) == 0)
+		{
+			if (pLen)
+			{
+				*pLen = (int)len;
+			}
+			return (int)(ACTIONSIGN_START + 1 + i); //返回种别码
 		}
 	}
 	return 0;
@@ -98,7 +132,16 @@ const char * getPresetStr(int value)
 	{
 		return OPERATOR_OR_DELIMITER[value - RESERVE_WORD_LEN - 1];
 	}
+	else if (value <= (ACTIONSIGN_START + ACTIONSIGN_LEN))
+	{
+		return ACTIONSIGN[value - ACTIONSIGN_START - 1];
+	}
 	return nullptr;
+}
+
+bool isActionSign(int value)
+{
+	return ACTIONSIGN_START < value && value <= (ACTIONSIGN_START + ACTIONSIGN_LEN);
 }
 
 
@@ -166,7 +209,7 @@ bool LexicalScanner::scan(std::string & src)
 	ostringstream token_stream;
 	string token;
 	char ch;
-	int syn;
+	SYN syn;
 	for (size_t i = 0; i < src.size();)
 	{
 		while ((ch = src[i]) == ' ' || ch == '\t')
@@ -189,7 +232,7 @@ bool LexicalScanner::scan(std::string & src)
 				ch = src[++i];
 			}
 			token = token_stream.str();
-			syn = findReserve(token.c_str());
+			syn = (SYN)findReserve(token.c_str());
 			if (syn)
 			{
 				tokens.emplace_back(syn);
@@ -271,7 +314,7 @@ bool LexicalScanner::scan(std::string & src)
 			// 查找界符或操作符
 			token_stream << ch;
 			token = token_stream.str();
-			syn = findOperatorOrDelimiter(token.c_str());
+			syn = (SYN)findOperatorOrDelimiter(token.c_str());
 			if (syn)
 			{
 				token_stream << src[i + 1];
@@ -279,7 +322,7 @@ bool LexicalScanner::scan(std::string & src)
 				int syn_tmp = findOperatorOrDelimiter(token.c_str());
 				if (syn_tmp)
 				{
-					syn = syn_tmp;
+					syn = (SYN)syn_tmp;
 					++i;
 				}
 				tokens.emplace_back(syn);
