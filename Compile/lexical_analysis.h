@@ -219,6 +219,6 @@ inline bool isDigit(char ch)
 char translate_char(char ch);
 
 /**
- * 编译预处理，取出无用的字符和注释
+ * 编译预处理，去除无用的字符和注释
  */
 std::string filterSource(std::string &src);

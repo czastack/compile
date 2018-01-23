@@ -52,7 +52,6 @@ void SyntaxAnalyzer::init(const string & grammar)
 				if (it[i] == '<' && i != it.length() - 1 && it.length() > 2)
 				{
 					// ∑«÷’Ω·∑˚
-					// »Ù£¡->B°≠£¨‘ÚΩ´First(B)≤¢»ÎFirst(A)
 					size_t j = it.find('>', i + 1); // >µƒŒª÷√
 					if (j == -1)
 					{
@@ -88,7 +87,9 @@ void SyntaxAnalyzer::init(const string & grammar)
 			}
 			wf.right.push_back(std::move(formula));
 		}
+#ifdef DEBUG
 		print_wf(wf);
+#endif // DEBUG
 	}
 
 	make_first();
@@ -372,12 +373,12 @@ void SyntaxAnalyzer::make_table()
 
 bool SyntaxAnalyzer::analyse(vector<Token> &tokens)
 {
-	stack<FormulaNode> stk; // ∑˚∫≈’ª
+	stack<FormulaNode> stk; // ∑÷Œˆ’ª
 	stk.emplace(false, SYN_START);
 	stk.emplace(true, 0);
 	int steps = 0; // ≤Ω÷Ë–Ú∫≈
 	int idx = 0; // token –Ú∫≈
-	auto tokenIt = tokens.begin();
+	auto tokenIt = tokens.begin(); // ‘§¡Ù∑˚∫≈¥Æµ¸¥˙∆˜
 
 	while (!stk.empty())
 	{
@@ -413,6 +414,9 @@ bool SyntaxAnalyzer::analyse(vector<Token> &tokens)
 				}
 				else if (tokenIt->syn == node.value)
 				{
+#ifdef DEBUG
+					cout << "∆•≈‰÷’Ω·∑˚ " << getPresetStr(node.value) << endl;
+#endif // DEBUG
 					++tokenIt;
 				}
 				else
@@ -444,25 +448,6 @@ bool SyntaxAnalyzer::analyse(vector<Token> &tokens)
 				cout << wf.left << " -> ";
 				print_formula(formula);
 				cout << endl;
-
-				//  £”‡ ‰»Î¥Æ
-				cout << " £”‡ ‰»Î¥Æ";
-				for (auto it = tokenIt; it != tokens.end(); ++it)
-				{
-					if (it->syn == SYN_ID)
-					{
-						cout << m_lex.symbals[it->index];
-					}
-					else if (it->syn == SYN_INUM)
-					{
-						cout << it->ival;
-					}
-					else
-					{
-						cout << getPresetStr(it->syn);
-					}
-				}
-				cout << endl;
 #endif // DEBUG
 
 				auto pNode = formula.rbegin();
@@ -476,6 +461,26 @@ bool SyntaxAnalyzer::analyse(vector<Token> &tokens)
 				}
 			}
 		}
+#ifdef DEBUG
+		//  £”‡ ‰»Î¥Æ
+		cout << " £”‡ ‰»Î¥Æ";
+		for (auto it = tokenIt; it != tokens.end(); ++it)
+		{
+			if (it->syn == SYN_ID)
+			{
+				cout << m_lex.symbals[it->index];
+			}
+			else if (it->syn == SYN_INUM)
+			{
+				cout << it->ival;
+			}
+			else
+			{
+				cout << getPresetStr(it->syn);
+			}
+		}
+		cout << endl;
+#endif // DEBUG
 	}
 	return false;
 }
